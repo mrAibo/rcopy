@@ -20,13 +20,14 @@ source /path/to/rcopy.sh
 
 ## Features
 
-- **Versatile Copying**: Copy files and directories locally or to/from remote systems.
-- **Compression**: Compress data during transfer to save bandwidth.
-- **File Exclusion**: Exclude files using patterns or an exclude file.
-- **Bandwidth Control**: Limit transfer speed.
-- **SSH Options**: Specify SSH port, identity file, and username.
-- **Sync Mode**: Synchronize files between two remote servers.
-- **Verbosity Control**: Show detailed progress information.
+- **Dual Protocol Support**: Choose between `rsync` (default) or `scp`
+- **Compression**: Optional GZIP compression for slow networks
+- **Sync Mode**: Server-to-server synchronization with date filtering
+- **Bandwidth Control**: Limit transfer speed (rsync only)
+- **Exclusion Patterns**: Support for both inline patterns and exclude files
+- **SSH Integration**: Custom ports, keys, and SSH config compatibility
+- **Autocomplete**: Intelligent path completion for local/remote files
+- **Verbose Mode**: Detailed transfer progress visualization
 
 ## Usage
 
@@ -86,6 +87,31 @@ rcopy -z -m -v ~/large-project server:/backup/
 ```bash
 rcopy -e "*.log" -p 2222 ~/project user@server:/backup/
 ```
+
+- Enable direct server-to-server transfers with -S/--sync:
+
+```bash
+rcopy -S --source-host HOST1 --target-host HOST2 /src /dest
+
+Sync Options:
+
+--days N: Only sync files modified in last N days
+
+Combine with -m to move files after sync
+```
+
+## Performance Tips
+- **Use compression (-z) for**:
+Text files and small documents, 
+High-latency connections, 
+Transfers with many small files
+- **Prefer rsync for**:
+Large directories, 
+Partial transfers, 
+Network-efficient updates
+- **Use SCP (-s) for**:
+Single large files, 
+Simple transfers without advanced features
 
 ## License
 
