@@ -781,9 +781,15 @@ _rcopy_autocomplete() {
 # Activate autocomplete
 complete -F _rcopy_autocomplete rcopy
 
-# Export function if sourced
+# Export function if sourced; run directly as a command otherwise
 if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     export -f rcopy
     export -f show_help
     echo "rcopy function loaded. Type 'rcopy --help' for usage information."
+else
+    if [[ $# -eq 0 ]]; then
+        show_help
+    else
+        rcopy "$@"
+    fi
 fi

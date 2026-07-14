@@ -12,10 +12,12 @@ Due to its comprehensive functionality, **rcopy** is best sourced from outside y
 git clone https://github.com/mrAibo/rcopy.git
 ```
 
-2. Source the script in your terminal or within a script:
+2. Use it either way — no build step:
 
 ```bash
-source /path/to/rcopy.sh
+source /path/to/rcopy.sh      # defines the rcopy function for this shell
+# or run it directly, no sourcing required:
+/path/to/rcopy.sh src dest
 ```
 
 ## Features
@@ -99,6 +101,23 @@ Sync Options:
 
 Combine with -m to move files after sync
 ```
+
+## SSH key automation
+
+You rarely need `-u`/`-i`. **rcopy delegates all key handling to SSH**, so set
+it up once in `~/.ssh/config` and drop the flags:
+
+```
+Host myserver
+    HostName 192.0.2.10
+    User bob
+    IdentityFile ~/.ssh/bob_key
+    IdentitiesOnly yes
+```
+
+Then `rcopy myserver:/data /backup/` just works — user and key are picked up
+automatically. For passwordless operation, load the key once with
+`ssh-add ~/.ssh/bob_key` (ssh-agent) instead of passing `-i` every run.
 
 ## Performance Tips
 - **Use compression (-z) for**:
