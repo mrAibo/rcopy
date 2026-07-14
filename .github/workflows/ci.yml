@@ -1,0 +1,19 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Syntax check
+        run: bash -n rcopy.sh
+      - name: ShellCheck
+        run: shellcheck -S error rcopy.sh
+      - name: Run tests
+        run: bash test_rcopy.sh

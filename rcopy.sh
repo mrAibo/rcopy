@@ -237,7 +237,12 @@ rcopy() {
         local src=$1
         local dest=$2
         local errors=()
-        
+
+        # Compression is implemented as a local tar; a remote source can't be tarred here
+        if $compress && [[ "$src" == *:* ]]; then
+            errors+=("Compression (-z) requires a local source")
+        fi
+
         # Check if source exists (local only)
         if [[ "$src" != *:* ]] && [[ ! -e "$src" ]]; then
             errors+=("Source '$src' does not exist")

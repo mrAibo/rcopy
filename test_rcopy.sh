@@ -43,6 +43,10 @@ assert "--user prepends user@ to source" "1" "$(count 'alice@host' "$TEST_DIR/o1
 capture rcopy -u bob -d "$SRC_DIR" bobhost:/dest/ "$TEST_DIR/o2"
 assert "--user (-u) prepends user@ to dest" "1" "$(count 'bob@bobhost' "$TEST_DIR/o2")"
 
+# --- 1b. -z compression requires a LOCAL source (remote source can't be tarred) ---
+capture rcopy -z -d user@xhost:/data /backup/ "$TEST_DIR/o1b"
+assert "-z with remote source is rejected" "1" "$(count 'Compression (-z) requires a local source' "$TEST_DIR/o1b")"
+
 # --- 2. -m must NOT delete a remote source (data-loss guard) ---------------
 capture rcopy -m -d "$SRC_DIR" xhost:/x/ "$TEST_DIR/o3"
 assert "-m remote source: no 'Removing source' in dry-run" "0" "$(count 'Removing source files' "$TEST_DIR/o3")"
