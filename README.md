@@ -113,6 +113,33 @@ Network-efficient updates
 Single large files, 
 Simple transfers without advanced features
 
+## Testing
+
+A minimal regression suite lives in `test_rcopy.sh` (no external deps — plain
+bash). It covers the fixes below and guards against regressions:
+
+```bash
+bash test_rcopy.sh
+```
+
+## Recent fixes (v1.1)
+
+- **`-u/--user` is now applied** to remote source/destination specs (previously
+  parsed but ignored — `rcopy -u bob host:/x /y` ran as the current user).
+- **`-m/--move` no longer deletes a remote source.** Move-mode cleanup now runs
+  only for local sources; a remote→local move previously deleted the file on the
+  server (silent data loss).
+- **`-r/--resume` is corrected.** Uses `--partial` only; the old
+  `--append-verify` could corrupt a full copy when sizes already matched.
+- **`NO_COLOR` works.** Color variables are no longer `readonly`, so the
+  no-color branch can actually clear them.
+- **`-L/--log` no longer swallows errors.** Logging redirection starts only
+  after argument validation, so "Missing source or destination" stays on the
+  terminal.
+- **Dry-run preview is accurate.** SSH port/identity are combined into a single
+  `-e 'ssh -p … -i …'` instead of two conflicting `-e` flags.
+- **trap EXIT cleanup** no longer emits `unbound variable` noise under `set -u`.
+
 ## License
 
 rcopy is licensed under the GNU General Public License v3.0.

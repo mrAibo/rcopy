@@ -9,13 +9,13 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-# Color Definitions
-readonly GREEN=$'\033[0;32m'
-readonly RED=$'\033[0;31m'
-readonly YELLOW=$'\033[0;33m'
-readonly BLUE=$'\033[0;34m'
-readonly CYAN=$'\033[0;36m'
-readonly RESET=$'\033[0m'
+# Color Definitions (not readonly so NO_COLOR can clear them)
+GREEN=$'\033[0;32m'
+RED=$'\033[0;31m'
+YELLOW=$'\033[0;33m'
+BLUE=$'\033[0;34m'
+CYAN=$'\033[0;36m'
+RESET=$'\033[0m'
 
 # Disable colors if NO_COLOR is set
 if [[ -n "${NO_COLOR:-}" ]]; then
@@ -115,11 +115,11 @@ rcopy() {
     # Cleanup function with proper exit code preservation
     trap_cleanup() {
         local exit_code=$?
-        if [[ -n "$temp_dir" ]] && [[ -d "$temp_dir" ]]; then
-            rm -rf "$temp_dir" 2>/dev/null || true
+        if [[ -n "${temp_dir:-}" ]] && [[ -d "${temp_dir:-}" ]]; then
+            rm -rf "${temp_dir:-}" 2>/dev/null || true
         fi
-        if [[ -n "$temp_src" ]] && [[ -d "$temp_src" ]]; then
-            rm -rf "$temp_src" 2>/dev/null || true
+        if [[ -n "${temp_src:-}" ]] && [[ -d "${temp_src:-}" ]]; then
+            rm -rf "${temp_src:-}" 2>/dev/null || true
         fi
         exit $exit_code
     }
@@ -319,8 +319,6 @@ rcopy() {
             -L|--log)
                 [[ -z "${2:-}" ]] && { echo_color "$RED" "Error: --log requires an argument"; return 1; }
                 log_file="$2"
-                exec > >(tee -a "$log_file")
-                exec 2>&1
                 shift 2 ;;
             -s|--use-scp) use_scp=true; shift ;;
             -v|--verbose) verbose=true; shift ;;
@@ -358,6 +356,25 @@ rcopy() {
     local src="$1"
     local dest="$2"
 
+    # Apply -u/--user to remote specs (root-cause fix: was ignored before)
+    apply_user_prefix() {
+        local spec=$1
+        if [[ -n "$user" && "$spec" == *:* && "$spec" != *@*:* ]]; then
+            local host=${spec%%:*} rest=${spec#*:}
+            echo "${user}@${host}:${rest}"
+        else
+            echo "$spec"
+        fi
+    }
+    src=$(apply_user_prefix "$src")
+    dest=$(apply_user_prefix "$dest")
+
+    # Start logging only after validation so errors stay on the terminal
+    if [[ -n "$log_file" ]]; then
+        exec > >(tee -a "$log_file")
+        exec 2>&1
+    fi
+
     # Check dependencies first
     check_dependencies || return 1
 
@@ -366,6 +383,12 @@ rcopy() {
         if [[ -z "$source_host" ]] || [[ -z "$target_host" ]]; then
             echo_color "$RED" "✗ Error: --source-host and --target-host are required for sync mode"
             return 1
+        fi
+
+        # Honor -u/--user for sync SSH/rsync specs
+        if [[ -n "$user" ]]; then
+            [[ -n "$source_host" && "$source_host" != *@* ]] && source_host="${user}@${source_host}"
+            [[ -n "$target_host" && "$target_host" != *@* ]] && target_host="${user}@${target_host}"
         fi
 
         local sync_temp_dir sync_file_list
@@ -446,10 +469,12 @@ rcopy() {
             cmd_preview+=" -avh --info=progress2"
         fi
         
-        [[ -n "$port" ]] && cmd_preview+=" -e 'ssh -p $port'"
-        [[ -n "$identity" ]] && cmd_preview+=" -e 'ssh -i $identity'"
+        local ssh_preview="ssh"
+        [[ -n "$port" ]] && ssh_preview+=" -p $port"
+        [[ -n "$identity" ]] && ssh_preview+=" -i $identity"
+        [[ "$ssh_preview" != "ssh" ]] && cmd_preview+=" -e '$ssh_preview'"
         [[ -n "$limit" ]] && cmd_preview+=" --bwlimit=$limit"
-        $resume && cmd_preview+=" --partial --append-verify"
+        $resume && cmd_preview+=" --partial"
         
         echo_color "$BLUE" "Would execute: $cmd_preview $src $dest"
         return 0
@@ -502,7 +527,7 @@ rcopy() {
         transfer_cmd="rsync"
         transfer_opts=(-avh --info=progress2)
         $verbose && transfer_opts+=(--stats)
-        $resume && transfer_opts+=(--partial --append-verify)
+        $resume && transfer_opts+=(--partial)
         
         # Add exclude patterns
         if [[ -n "$exclude_file" ]]; then
@@ -570,8 +595,9 @@ rcopy() {
         fi
     fi
 
-    # Clean up source if move is enabled
-    if $move; then
+    # Clean up source if move is enabled (local source only — never delete a
+    # remote source automatically, that would be silent data loss)
+    if $move && [[ "$original_src" != *:* ]]; then
         echo_color "$YELLOW" "Removing source files..."
         if [[ -e "$original_src" ]]; then
             rm -rf "$original_src"
